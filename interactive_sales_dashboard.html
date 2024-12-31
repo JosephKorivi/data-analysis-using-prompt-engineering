@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Sales Performance Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #c9d6ff, #e2e2e2); /* Icy blue gradient */
+      color: #333;
+      overflow-x: hidden;
+    }
+  
+    h1 {
+      text-align: center;
+      margin: 20px;
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #f00000;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+  
+    input[type="file"] {
+      display: block;
+      margin: 20px auto;
+      font-size: 30px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      color: #333;
+      cursor: pointer;
+    }
+    #fileInput {
+      font-size: 30px;
+      color: rgb(3, 72, 72);
+      font-family: sans;
+
+    }
+  </style>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+  <h1>Interactive Sales Performance Dashboard</h1>
+
+  <input type="file" id="fileInput" accept="application/json">
+  <div id="dashboard">
+    <div id="salesByItemType" style="width: 100%; height: 500px;"></div>
+    <div id="avgSalesByOutletType" style="width: 100%; height: 500px;"></div>
+    <div id="salesDistributionByLocationType" style="width: 100%; height: 500px;"></div>
+    <div id="yearlySalesTrend" style="width: 100%; height: 500px;"></div>
+    <div id="mrpVsSales" style="width: 100%; height: 500px;"></div>
+  </div>
+
+  <script>
+    document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = JSON.parse(e.target.result);
+        generateDashboard(data);
+      };
+      reader.readAsText(file);
+    }
+
+    function generateDashboard(data) {
+      const itemTypes = {};
+      const outletTypes = {};
+      const locationTypes = {};
+      const yearlySales = {};
+      const mrpSales = { mrp: [], sales: [] };
+
+      data.forEach(row => {
+        // Total Sales by Item Type
+        itemTypes[row.Item_Type] = (itemTypes[row.Item_Type] || 0) + row.Item_Outlet_Sales;
+
+        // Average Sales by Outlet Type
+        if (!outletTypes[row.Outlet_Type]) {
+          outletTypes[row.Outlet_Type] = { total: 0, count: 0 };
+        }
+        outletTypes[row.Outlet_Type].total += row.Item_Outlet_Sales;
+        outletTypes[row.Outlet_Type].count++;
+
+        // Sales Distribution by Location Type
+        if (!locationTypes[row.Outlet_Location_Type]) {
+          locationTypes[row.Outlet_Location_Type] = [];
+        }
+        locationTypes[row.Outlet_Location_Type].push(row.Item_Outlet_Sales);
+
+        // Yearly Sales Trend
+        yearlySales[row.Outlet_Establishment_Year] = (yearlySales[row.Outlet_Establishment_Year] || 0) + row.Item_Outlet_Sales;
+
+        // MRP vs Sales
+        mrpSales.mrp.push(row.Item_MRP);
+        mrpSales.sales.push(row.Item_Outlet_Sales);
+      });
+
+      // Visualization 1: Total Sales by Item Type
+      Plotly.newPlot('salesByItemType', [{
+        x: Object.keys(itemTypes),
+        y: Object.values(itemTypes),
+        type: 'bar',
+        marker: { color: 'skyblue' }
+      }], { title: 'Total Sales by Item Type', xaxis: { title: 'Item Type' }, yaxis: { title: 'Total Sales' } });
+
+      // Visualization 2: Average Sales by Outlet Type
+      const avgSales = Object.keys(outletTypes).map(type => ({
+        outlet: type,
+        avg: outletTypes[type].total / outletTypes[type].count
+      }));
+      Plotly.newPlot('avgSalesByOutletType', [{
+        x: avgSales.map(d => d.outlet),
+        y: avgSales.map(d => d.avg),
+        type: 'bar',
+        marker: { color: 'coral' }
+      }], { title: 'Average Sales by Outlet Type', xaxis: { title: 'Outlet Type' }, yaxis: { title: 'Average Sales' } });
+
+      // Visualization 3: Sales Distribution by Location Type
+      const boxData = Object.keys(locationTypes).map(loc => ({
+        y: locationTypes[loc],
+        type: 'box',
+        name: loc
+      }));
+      Plotly.newPlot('salesDistributionByLocationType', boxData, { title: 'Sales Distribution by Location Type', yaxis: { title: 'Sales' } });
+
+      // Visualization 4: Yearly Sales Trend
+      Plotly.newPlot('yearlySalesTrend', [{
+        x: Object.keys(yearlySales),
+        y: Object.values(yearlySales),
+        type: 'scatter',
+        mode: 'lines+markers',
+        marker: { color: 'green' }
+      }], { title: 'Yearly Sales Trend', xaxis: { title: 'Year' }, yaxis: { title: 'Total Sales' } });
+
+      // Visualization 5: Correlation between MRP and Sales
+      Plotly.newPlot('mrpVsSales', [{
+        x: mrpSales.mrp,
+        y: mrpSales.sales,
+        mode: 'markers',
+        marker: { color: 'purple', opacity: 0.5 }
+      }], { title: 'Correlation between MRP and Sales', xaxis: { title: 'Item MRP' }, yaxis: { title: 'Sales' } });
+    }
+  </script>
+</body>
+</html>
