@@ -1,4 +1,3 @@
-Here’s a sample README file for your GitHub repository, which you can use for your project:
 
 ---
 
